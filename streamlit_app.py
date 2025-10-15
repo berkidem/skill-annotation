@@ -37,6 +37,14 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("**Raw Return Value:**")
     st.write("Type:", str(type(annotations)))
+    st.write("Length:", len(annotations) if annotations else 0)
+    
+    # Debug: show structure
+    if annotations:
+        st.write("Structure:")
+        for i, item in enumerate(annotations):
+            st.write(f"  [{i}] type: {type(item)}, len: {len(item) if isinstance(item, list) else 'N/A'}")
+    
     st.write("Value:")
     try:
         if annotations:
@@ -51,28 +59,36 @@ with col2:
     st.markdown("**Parsed Skills:**")
     try:
         if annotations and isinstance(annotations, list) and len(annotations) > 0:
-            # Handle nested list structure [[{...}, {...}]]
-            actual_annotations = annotations[0] if isinstance(annotations[0], list) else annotations
+            # Flatten nested structures - collect all dicts
+            all_skills = []
             
-            st.write(f"Total skills: {len(actual_annotations)}")
+            def extract_skills(item):
+                """Recursively extract skill dicts from nested structure"""
+                if isinstance(item, dict):
+                    all_skills.append(item)
+                elif isinstance(item, list):
+                    for sub_item in item:
+                        extract_skills(sub_item)
             
-            for i, ann in enumerate(actual_annotations):
-                if isinstance(ann, dict):
-                    # text_highlighter returns 'label' field with the text
-                    text = ann.get('label', ann.get('text', 'N/A'))
-                    start = ann.get('start', '?')
-                    end = ann.get('end', '?')
-                    
-                    st.write(f"{i+1}. **{text}**")
-                    st.caption(f"   Position: {start}-{end}")
-                    
-                    # Verify the text matches
-                    if isinstance(start, int) and isinstance(end, int):
-                        extracted = current_example['text'][start:end]
-                        matches = extracted == text
-                        st.caption(f"   Extracted: '{extracted}' {'✓' if matches else '✗ MISMATCH'}")
-                else:
-                    st.write(f"{i+1}. {repr(ann)} (unexpected format)")
+            extract_skills(annotations)
+            
+            st.write(f"Total skills: {len(all_skills)}")
+            st.caption(f"(Found in {len(annotations)} top-level items)")
+            
+            for i, ann in enumerate(all_skills):
+                # text_highlighter returns 'label' field with the text
+                text = ann.get('label', ann.get('text', 'N/A'))
+                start = ann.get('start', '?')
+                end = ann.get('end', '?')
+                
+                st.write(f"{i+1}. **{text}**")
+                st.caption(f"   Position: {start}-{end}")
+                
+                # Verify the text matches
+                if isinstance(start, int) and isinstance(end, int):
+                    extracted = current_example['text'][start:end]
+                    matches = extracted == text
+                    st.caption(f"   Extracted: '{extracted}' {'✓' if matches else '✗ MISMATCH'}")
         else:
             st.info("Click words above to highlight them")
     except Exception as e:
@@ -86,8 +102,18 @@ st.markdown("### 💾 How We'd Save This")
 
 if st.button("Show Save Format"):
     if annotations and isinstance(annotations, list) and len(annotations) > 0:
-        # Handle nested list structure
-        actual_annotations = annotations[0] if isinstance(annotations[0], list) else annotations
+        # Flatten nested structures - collect all dicts
+        all_skills = []
+        
+        def extract_skills(item):
+            """Recursively extract skill dicts from nested structure"""
+            if isinstance(item, dict):
+                all_skills.append(item)
+            elif isinstance(item, list):
+                for sub_item in item:
+                    extract_skills(sub_item)
+        
+        extract_skills(annotations)
         
         save_format = {
             "job_id": current_example['id'],
@@ -99,7 +125,7 @@ if st.button("Show Save Format"):
                     "end": ann.get('end', 0),
                     "note": ""
                 }
-                for ann in actual_annotations if isinstance(ann, dict)
+                for ann in all_skills
             ]
         }
         st.json(save_format)
