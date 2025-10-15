@@ -1,6 +1,7 @@
 """Quick test of streamlit-annotation-tools"""
 
 import streamlit as st
+!pip install streamlit_annotation_tools
 from streamlit_annotation_tools import text_highlighter
 import json
 
